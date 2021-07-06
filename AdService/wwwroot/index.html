@@ -1,0 +1,247 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Список объявлений</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.0/css/bootstrap.min.css" rel="stylesheet" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <h2>Список объявлений</h2>
+    <div class="panel-body">
+        <button id="add" class="btn btn-primary" onclick='HideShowObj(document.forms["adsForm"], true);'>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-patch-plus" viewBox="0 0 16 16">
+                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
+                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
+            </svg>
+        </button>
+    </div>
+    <form name="adsForm" style="content-visibility: hidden">
+        <input type="hidden" name="id" value="0" />
+        <div class="form-group col-md-5">
+            <label for="name">Имя:</label>
+            <input class="form-control" name="name" />
+        </div>
+        <div class="form-group col-md-5">
+            <label for="description">Описание:</label>
+            <input class="form-control" name="description" />
+        </div>
+        <div class="form-group col-md-5">
+            <label for="price">Цена:</label>
+            <input class="form-control" name="price" />
+        </div>
+        <div class="form-group col-md-3">
+            <img style='display:block; width:200px;height:200px;' id='image'
+                 src='' />
+        </div>
+        <div class="form-group col-md-3">
+
+            <input class="form-control" name="photo" onchange="showImg(this.value)" />
+
+        </div>
+        <div class="form-group col-md-5">
+            <label name="date">Date:</label>
+            <input class="form-control" name="date" disabled />
+        </div>
+        <div class="panel-body">
+            <button type="submit" id="submit" class="btn btn-primary">Сохранить</button>
+            <a id="reset" class="btn btn-primary" onclick="reset()">Сбросить</a>
+        </div>
+    </form>
+
+    <table class="table table-condensed table-striped  col-md-6">
+        <tbody>
+        </tbody>
+    </table>
+    <script>
+
+        async function GetAds() {
+            const response = await fetch("/api/ad", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+
+            if (response.ok === true) {
+                const ads = await response.json();
+                let rows = document.querySelector("tbody");
+
+                ads.forEach(ad => {
+                    rows.append(row(ad));
+                });
+
+            }
+        }
+
+        async function GetAd(id) {
+
+            const response = await fetch("/api/ad/" + id, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const ad = await response.json();
+                const form = document.forms["adsForm"];
+                HideShowObj(form);
+                form.elements["id"].value = ad.id;
+                form.elements["name"].value = ad.name;
+                form.elements["description"].value = ad.description;
+                form.elements["photo"].value = ad.photo;
+                form.elements["price"].value = ad.price;
+                form.elements["date"].value = ad.date;
+                showImg(ad.photo);
+            }
+        }
+
+        async function CreateAd(adName, adDesc, adPhoto, adPrice) {
+            const response = await fetch("api/ad", {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: adName,
+                    description: adDesc,
+                    photo: adPhoto,
+                    price: adPrice,
+                    date: new Date(),
+                })
+            });
+            if (response.ok === true) {
+                const ad = await response.json();
+                reset();
+                document.querySelector("tbody").append(row(ad));
+            }
+        }
+
+        async function EditAd(adId, adName, adDesc, adPhoto, adPrice) {
+            const response = await fetch("api/ad", {
+                method: "PUT",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: parseInt(adId, 10),
+                    name: adName,
+                    description: adDesc,
+                    photo: adPhoto,
+                    price: adPrice,
+                    date: new Date(),
+                })
+            });
+            if (response.ok === true) {
+                const ad = await response.json();
+                reset();
+                document.querySelector("tr[data-rowid='" + ad.id + "']").replaceWith(row(ad));
+            }
+        }
+
+        async function DeleteAd(id) {
+            const response = await fetch("/api/ad/" + id, {
+                method: "DELETE",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const ad = await response.json();
+                document.querySelector("tr[data-rowid='" + ad.id + "']").remove();
+            }
+        }
+
+
+        function reset() {
+            const form = document.forms["adsForm"];
+            form.reset();
+            form.elements["id"].value = 0;
+            showImg('');
+        }
+
+        function row(ad) {
+
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", ad.id);
+
+            const photoTd = document.createElement("td");
+            const photoImg = document.createElement("img");
+            photoImg.src = ad.photo;
+            photoImg.height = "100";
+            photoImg.width = "100";
+            photoTd.append(ad.photo);
+            tr.append(photoImg);
+
+            const nameTd = document.createElement("td");
+            const nameSpan = document.createElement("h2");
+            const descriptionSpan = document.createElement("p");
+            nameSpan.append(ad.name)
+            descriptionSpan.append(ad.description)
+            nameTd.appendChild(nameSpan);
+            nameTd.appendChild(descriptionSpan);
+            console.log(descriptionSpan.width)
+            tr.append(nameTd);
+
+            const priceTd = document.createElement("td");
+            const priceSpan = document.createElement("h2");
+            const dateSpan = document.createElement("p");
+            priceSpan.append(ad.price)
+            dateSpan.append(ad.date)
+            priceTd.appendChild(priceSpan);
+            priceTd.appendChild(dateSpan);
+            tr.append(priceTd);
+
+            const linksTd = document.createElement("td");
+
+            const editLink = document.createElement("a");
+            editLink.setAttribute("data-id", ad.id);
+            editLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            editLink.append("Изменить");
+            editLink.addEventListener("click", e => {
+
+                e.preventDefault();
+                GetAd(ad.id);
+            });
+            linksTd.append(editLink);
+
+            const removeLink = document.createElement("a");
+            removeLink.setAttribute("data-id", ad.id);
+            removeLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            removeLink.append("Удалить");
+            removeLink.addEventListener("click", e => {
+
+                e.preventDefault();
+                DeleteAd(ad.id);
+            });
+
+            linksTd.append(removeLink);
+            tr.appendChild(linksTd);
+
+            return tr;
+        }
+
+        document.forms["adsForm"].addEventListener("submit", e => {
+            e.preventDefault();
+            const form = document.forms["adsForm"];
+            const id = form.elements["id"].value;
+            const name = form.elements["name"].value;
+            const description = form.elements["description"].value;
+            const photo = form.elements["photo"].value;
+            const price = form.elements["price"].value;
+            const date = form.elements["date"].value;
+
+            if (id == 0)
+                CreateAd(name, description, photo, price, date);
+            else
+                EditAd(id, name, description, photo, price, date);
+            HideShowObj(form, true);
+        });
+
+        GetAds();
+
+        function showImg(src) {
+            document.getElementById("image").src = src;
+        }
+
+        function HideShowObj(obj, permissionToHide = false) {
+            if (obj.style.display == "block" && permissionToHide)
+                obj.setAttribute("style", "display: none");
+            else
+                obj.setAttribute("style", "display: block");
+        }
+    </script>
+</body>
+</html>

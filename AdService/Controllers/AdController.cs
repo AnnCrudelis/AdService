@@ -26,10 +26,9 @@ namespace AdService.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Ad>>> Get()
         {
-            return await db.Ads.ToListAsync();
+            return await db.Ads.OrderBy(w => w.Name).ToListAsync();
         }
 
-        // GET api/users/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Ad>> Get(int id)
         {
@@ -52,7 +51,6 @@ namespace AdService.Controllers
             return Ok(ad);
         }
 
-        // PUT api/users/
         [HttpPut]
         public async Task<ActionResult<Ad>> Put(Ad ad)
         {
@@ -70,7 +68,6 @@ namespace AdService.Controllers
             return Ok(ad);
         }
 
-        // DELETE api/users/5
         [HttpDelete("{id}")]
         public async Task<ActionResult<Ad>> Delete(int id)
         {

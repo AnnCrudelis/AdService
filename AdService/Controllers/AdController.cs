@@ -24,13 +24,28 @@ namespace AdService.Controllers
             }
         }
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Ad>>> Get()
+        public async Task<ActionResult<IEnumerable<Ad>>> GetAll()
         {
-            return await db.Ads.OrderBy(w => w.Name).ToListAsync();
+            return await db.Ads.ToListAsync();
+        }
+
+        [HttpGet("{orderBy}/{asc}")]
+        public async Task<ActionResult<IEnumerable<Ad>>> GetAllWithSort(string orderBy = null, bool asc = true)
+        {
+            if (orderBy == "Price" && asc)
+                return await db.Ads.OrderBy(w => w.Price).ToListAsync();
+            if (orderBy == "Price" && !asc)
+                return await db.Ads.OrderByDescending(w => w.Price).ToListAsync();
+            if (orderBy == "Date" && asc)
+                return await db.Ads.OrderBy(w => w.Date).ToListAsync();
+            if (orderBy == "Date" && !asc)
+                return await db.Ads.OrderByDescending(w => w.Date).ToListAsync();
+            else
+                return await db.Ads.OrderBy(w => w.Id).ToListAsync();
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Ad>> Get(int id)
+        public async Task<ActionResult<Ad>> GetById(int id)
         {
             Ad ad = await db.Ads.FirstOrDefaultAsync(x => x.Id == id);
             if (ad == null)

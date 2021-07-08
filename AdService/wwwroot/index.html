@@ -17,6 +17,12 @@
                 <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
             </svg>
         </button>
+        <select id="SortAd">
+            <option value="Price/true">Цена по возрастанию</option>
+            <option value="Price/false">Цена по убыванию</option>
+            <option value="Date/true">Дата по возрастанию</option>
+            <option value="Date/false">Дата по убыванию</option>
+        </select>
     </div>
     <form name="adsForm" style="content-visibility: hidden">
         <input type="hidden" name="id" value="0" />
@@ -30,7 +36,7 @@
         </div>
         <div class="form-group col-md-5">
             <label for="price">Цена:</label>
-            <input class="form-control" name="price" />
+            <input class="form-control" name="price" type="number"/>
         </div>
         <div class="form-group col-md-3">
             <img style='display:block; width:200px;height:200px;' id='image'
@@ -52,13 +58,13 @@
     </form>
 
     <table class="table table-condensed table-striped  col-md-6">
-        <tbody>
+        <tbody id="tbody">
         </tbody>
     </table>
     <script>
 
-        async function GetAds() {
-            const response = await fetch("/api/ad", {
+        async function GetAds(orderBy, asc) {
+            const response = await fetch("/api/ad/"+orderBy+"/"+asc, {
                 method: "GET",
                 headers: { "Accept": "application/json" }
             });
@@ -172,13 +178,12 @@
             descriptionSpan.append(ad.description)
             nameTd.appendChild(nameSpan);
             nameTd.appendChild(descriptionSpan);
-            console.log(descriptionSpan.width)
             tr.append(nameTd);
 
             const priceTd = document.createElement("td");
             const priceSpan = document.createElement("h2");
             const dateSpan = document.createElement("p");
-            priceSpan.append(ad.price)
+            priceSpan.append(ad.price+"$")
             dateSpan.append(ad.date)
             priceTd.appendChild(priceSpan);
             priceTd.appendChild(dateSpan);
@@ -213,6 +218,14 @@
             return tr;
         }
 
+        var sort = document.getElementById("SortAd");
+        sort.addEventListener("change", function () {
+            var n = sort.options.selectedIndex;
+            var val = sort.options[n].value.split('/');
+            $("#tbody").empty();
+            GetAds(val[0], JSON.parse(val[1].toLowerCase()));
+        })
+
         document.forms["adsForm"].addEventListener("submit", e => {
             e.preventDefault();
             const form = document.forms["adsForm"];
@@ -230,7 +243,7 @@
             HideShowObj(form, true);
         });
 
-        GetAds();
+        GetAds(null, true);
 
         function showImg(src) {
             document.getElementById("image").src = src;
@@ -242,6 +255,7 @@
             else
                 obj.setAttribute("style", "display: block");
         }
+
     </script>
 </body>
 </html>

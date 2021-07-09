@@ -1,4 +1,4 @@
-﻿using AdService.Models;
+﻿using WebApi.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,8 +6,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Net;
 
-namespace AdService.Controllers
+namespace WebApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -19,7 +20,7 @@ namespace AdService.Controllers
             db = context;
             if (!db.Ads.Any())
             {
-                db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0 , Photo = "https://lh3.googleusercontent.com/proxy/4Nn3okrqkjHmvv0wTqWhY-BzIeHW0GmZPW_JtCYRzeIKwnqs-kM42KfBk9bVnY6R5cyU98duJcU359uafOIt31wnIRO-zShkjcOFlVz0tWl2fwEja3Omw_6KylIKYoU" }) ;
+                db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0 , Photo = "" }) ;
                 db.SaveChanges();
             }
         }
@@ -56,14 +57,29 @@ namespace AdService.Controllers
         [HttpPost]
         public async Task<ActionResult<Ad>> Post(Ad ad)
         {
-            if (ad == null)
+            try
             {
+                if (ad == null)
+                {
+                    return BadRequest();
+                }
+
+                if (ad.Price < 0)
+                    ModelState.AddModelError("Price", "Price must be > 0");
+
+
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
+                db.Ads.Add(ad);
+                await db.SaveChangesAsync();
+                return Ok(ad);
+            }
+            catch (Exception ex)
+            {
+                var q = ex;
                 return BadRequest();
             }
-
-            db.Ads.Add(ad);
-            await db.SaveChangesAsync();
-            return Ok(ad);
         }
 
         [HttpPut]

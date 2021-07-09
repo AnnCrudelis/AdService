@@ -10,6 +10,7 @@
 </head>
 <body>
     <h2>Список объявлений</h2>
+    <div id="errors" class="alert alert-danger" style="display:none;"></div>
     <div class="panel-body">
         <button id="add" class="btn btn-primary" onclick='HideShowObj(document.forms["adsForm"], true);'>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-patch-plus" viewBox="0 0 16 16">
@@ -36,7 +37,7 @@
         </div>
         <div class="form-group col-md-5">
             <label for="price">Цена:</label>
-            <input class="form-control" name="price" type="number"/>
+            <input class="form-control" name="price" type="number" />
         </div>
         <div class="form-group col-md-3">
             <img style='display:block; width:200px;height:200px;' id='image'
@@ -64,13 +65,13 @@
     <script>
 
         async function GetAds(orderBy, asc) {
-            const response = await fetch("/api/ad/"+orderBy+"/"+asc, {
+            const response = await fetch("/api/ad/" + orderBy + "/" + asc, {
                 method: "GET",
                 headers: { "Accept": "application/json" }
             });
 
             if (response.ok === true) {
-                const ads = await response.json();
+                var ads = await response.json();
                 let rows = document.querySelector("tbody");
 
                 ads.forEach(ad => {
@@ -87,7 +88,7 @@
                 headers: { "Accept": "application/json" }
             });
             if (response.ok === true) {
-                const ad = await response.json();
+                var ad = await response.json();
                 const form = document.forms["adsForm"];
                 HideShowObj(form);
                 form.elements["id"].value = ad.id;
@@ -100,7 +101,7 @@
             }
         }
 
-        async function CreateAd(adName, adDesc, adPhoto, adPrice) {
+        async function CreateAd(adName, adDesc, adPhoto, adPrice, adDate) {
             const response = await fetch("api/ad", {
                 method: "POST",
                 headers: { "Accept": "application/json", "Content-Type": "application/json" },
@@ -109,17 +110,48 @@
                     description: adDesc,
                     photo: adPhoto,
                     price: adPrice,
-                    date: new Date(),
+                    date: adDate
                 })
             });
+            console.log(response)
             if (response.ok === true) {
-                const ad = await response.json();
+                var ad = await response.json();
                 reset();
                 document.querySelector("tbody").append(row(ad));
             }
+            else {
+                $("#errors").empty();
+                var errorData = await response.json();
+                console.log("errors", errorData);
+                if (errorData) {
+                    if (errorData.errors) {
+                        if (errorData.errors["Name"]) {
+                            addError(errorData.errors["Name"]);
+                        }
+                        if (errorData.errors["Price"]) {
+                            addError(errorData.errors["Price"]);
+                        }
+                        if (errorData.errors["Photo"]) {
+                            addError(errorData.errors["Photo"]);
+                        }
+                    }
+                    if (errorData["Name"]) {
+                        addError(errorData["Name"]);
+                    }
+
+                    if (errorData["Price"]) {
+                        addError(errorData["Price"]);
+                    }
+                    if (errorData["Photo"]) {
+                        addError(errorData["Photo"]);
+                    }
+                }
+                document.getElementById("errors").focus();
+                document.getElementById("errors").style.display = "block";
+            }
         }
 
-        async function EditAd(adId, adName, adDesc, adPhoto, adPrice) {
+        async function EditAd(adId, adName, adDesc, adPhoto, adPrice, adDate) {
             const response = await fetch("api/ad", {
                 method: "PUT",
                 headers: { "Accept": "application/json", "Content-Type": "application/json" },
@@ -129,11 +161,12 @@
                     description: adDesc,
                     photo: adPhoto,
                     price: adPrice,
-                    date: new Date(),
+                    date: adDate,
                 })
             });
             if (response.ok === true) {
-                const ad = await response.json();
+                HideShowObj(document.forms["adsForm"], true);
+                var ad = await response.json();
                 reset();
                 document.querySelector("tr[data-rowid='" + ad.id + "']").replaceWith(row(ad));
             }
@@ -145,7 +178,7 @@
                 headers: { "Accept": "application/json" }
             });
             if (response.ok === true) {
-                const ad = await response.json();
+                var ad = await response.json();
                 document.querySelector("tr[data-rowid='" + ad.id + "']").remove();
             }
         }
@@ -156,6 +189,13 @@
             form.reset();
             form.elements["id"].value = 0;
             showImg('');
+        }
+        function addError(errors) {
+            errors.forEach(error => {
+                const p = document.createElement("p");
+                p.append(error);
+                document.getElementById("errors").append(p);
+            });
         }
 
         function row(ad) {
@@ -183,7 +223,7 @@
             const priceTd = document.createElement("td");
             const priceSpan = document.createElement("h2");
             const dateSpan = document.createElement("p");
-            priceSpan.append(ad.price+"$")
+            priceSpan.append(ad.price + "$")
             dateSpan.append(ad.date)
             priceTd.appendChild(priceSpan);
             priceTd.appendChild(dateSpan);
@@ -228,19 +268,22 @@
 
         document.forms["adsForm"].addEventListener("submit", e => {
             e.preventDefault();
-            const form = document.forms["adsForm"];
-            const id = form.elements["id"].value;
-            const name = form.elements["name"].value;
-            const description = form.elements["description"].value;
-            const photo = form.elements["photo"].value;
-            const price = form.elements["price"].value;
-            const date = form.elements["date"].value;
+            var form = document.forms["adsForm"];
+            var id = form.elements["id"].value;
+            var name = form.elements["name"].value;
+            var description = form.elements["description"].value;
+            var photo = form.elements["photo"].value;
+            var price = form.elements["price"].value;
+            var date = new Date();
+            if (price == "")
+                price = -1;
+
 
             if (id == 0)
                 CreateAd(name, description, photo, price, date);
             else
                 EditAd(id, name, description, photo, price, date);
-            HideShowObj(form, true);
+
         });
 
         GetAds(null, true);

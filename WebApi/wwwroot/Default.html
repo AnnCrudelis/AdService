@@ -1,0 +1,335 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Список объявлений</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css" rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <h2>Список объявлений</h2>
+    <div id="errors" class="alert alert-danger" style="display:none;"></div>
+    <input type="hidden" id="pageId" value="" />
+    <div class="panel-body">
+        <button id="add" class="btn btn-primary glyphicon glyphicon-plus" onclick='HideShowObj(document.forms["adsForm"], true);'>
+        </button>
+        <select id="SortAd">
+            <option value="Price">Цена по возрастанию</option>
+            <option value="PriceDesc">Цена по убыванию</option>
+            <option value="Date">Дата по возрастанию</option>
+            <option value="DateDesc">Дата по убыванию</option>
+        </select>
+    </div>
+    <form name="adsForm" style="display: none">
+        <input type="hidden" name="id" value="0" />
+        <div class="form-group col-md-5">
+            <label for="name">Имя:</label>
+            <input class="form-control" name="name" />
+        </div>
+        <div class="form-group col-md-5">
+            <label for="description">Описание:</label>
+            <input class="form-control" name="description" />
+        </div>
+        <div class="form-group col-md-5">
+            <label for="price">Цена:</label>
+            <input class="form-control" name="price" type="number" />
+        </div>
+        <div class="form-group col-md-3">
+            <img style='display:block; width:200px;height:200px;' id='image' src='' />
+        </div>
+        <div class="form-group col-md-3">
+            <input class="form-control" name="photo" onchange="showImg(this.value)" />
+        </div>
+        <div class="form-group col-md-5">
+            <label name="date">Date:</label>
+            <input class="form-control" name="date" disabled />
+        </div>
+        <div class="panel-body">
+            <button type="submit" id="submit" class="btn btn-primary">Сохранить</button>
+            <a id="reset" class="btn btn-primary" onclick="reset()">Сбросить</a>
+        </div>
+    </form>
+
+    <table class="table table-condensed table-striped  col-md-6">
+        <tbody id="tbody">
+        </tbody>
+    </table>
+    <style>
+        @font-face {
+            font-family: 'glyphicons-halflings-regular';
+            src: url('../../../fonts/glyphicons-halflings-regular.woff2') format('woff2');
+        }
+    </style>
+    <script>
+
+        async function GetAds(id, orderby = "Date") {
+            const response = await fetch("/api/ad/?pageNumber=" + id + "&pageSize=10&orderBy=" + orderby, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+
+            if (response.ok === true) {
+                var resp = JSON.parse(JSON.stringify(await response.json()));
+                var ads = JSON.parse(JSON.stringify(resp)).data;
+                let rows = document.querySelector("tbody");
+                $("#pageId").val(resp.pageNumber);
+                ads.forEach(ad => {
+                    rows.append(row(ad));
+                });
+
+                var sort = document.getElementById("SortAd");
+                var n = sort.options.selectedIndex;
+                var val = sort.options[n].value;
+
+                if (resp.previousPage != null) {
+                    const previousPage = document.createElement("button");
+                    previousPage.addEventListener("click", e => {
+                        $("#tbody").empty();
+                        GetAds(resp.pageNumber - 1, val);
+                    });
+                    previousPage.classList.add("btn", "btn-primary");
+                    previousPage.classList.add("glyphicon", "glyphicon-chevron-left");
+                    rows.append(previousPage);
+                }
+
+                if (resp.nextPage != null) {
+                    const nextPage = document.createElement("button");
+                    nextPage.addEventListener("click", e => {
+                        $("#tbody").empty();
+                        GetAds(resp.pageNumber + 1, val);
+                    });
+                    nextPage.classList.add("btn", "btn-primary");
+                    nextPage.classList.add("glyphicon", "glyphicon-chevron-right");
+                    rows.append(nextPage);
+                }
+            }
+        }
+
+        async function GetAdById(id) {
+
+            const response = await fetch("/api/ad/" + id, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                var ad = await response.json();
+                const form = document.forms["adsForm"];
+                HideShowObj(form);
+                form.elements["id"].value = ad.id;
+                form.elements["name"].value = ad.name;
+                form.elements["description"].value = ad.description;
+                form.elements["photo"].value = ad.photo;
+                form.elements["price"].value = ad.price;
+                form.elements["date"].value = ad.date;
+                showImg(ad.photo);
+            }
+        }
+
+        async function CreateAd(adName, adDesc, adPhoto, adPrice, adDate) {
+            const response = await fetch("api/ad", {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: adName,
+                    description: adDesc,
+                    photo: adPhoto,
+                    price: adPrice,
+                    date: adDate
+                })
+            });
+            console.log(response)
+            if (response.ok === true) {
+                var ad = await response.json();
+                reset();
+                document.querySelector("tbody").append(row(ad));
+            }
+            else {
+                $("#errors").empty();
+                var errorData = await response.json();
+                console.log("errors", errorData);
+                if (errorData) {
+                    if (errorData.errors) {
+                        if (errorData.errors["Name"]) {
+                            addError(errorData.errors["Name"]);
+                        }
+                        if (errorData.errors["Price"]) {
+                            addError(errorData.errors["Price"]);
+                        }
+                        if (errorData.errors["Photo"]) {
+                            addError(errorData.errors["Photo"]);
+                        }
+                    }
+                    if (errorData["Name"]) {
+                        addError(errorData["Name"]);
+                    }
+
+                    if (errorData["Price"]) {
+                        addError(errorData["Price"]);
+                    }
+                    if (errorData["Photo"]) {
+                        addError(errorData["Photo"]);
+                    }
+                }
+                document.getElementById("errors").focus();
+                document.getElementById("errors").style.display = "block";
+            }
+        }
+
+        async function EditAd(adId, adName, adDesc, adPhoto, adPrice, adDate) {
+            const response = await fetch("api/ad", {
+                method: "PUT",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: parseInt(adId, 10),
+                    name: adName,
+                    description: adDesc,
+                    photo: adPhoto,
+                    price: adPrice,
+                    date: adDate,
+                })
+            });
+            if (response.ok === true) {
+                HideShowObj(document.forms["adsForm"], true);
+                var ad = await response.json();
+                reset();
+                document.querySelector("tr[data-rowid='" + ad.id + "']").replaceWith(row(ad));
+            }
+        }
+
+        async function DeleteAd(id) {
+            const response = await fetch("/api/ad/" + id, {
+                method: "DELETE",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                var ad = await response.json();
+                document.querySelector("tr[data-rowid='" + ad.id + "']").remove();
+            }
+        }
+
+        function reset() {
+            const form = document.forms["adsForm"];
+            form.reset();
+            form.elements["id"].value = 0;
+            showImg('');
+        }
+
+        function addError(errors) {
+            errors.forEach(error => {
+                const p = document.createElement("p");
+                p.append(error);
+                document.getElementById("errors").append(p);
+            });
+        }
+
+        function row(ad) {
+
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", ad.id);
+
+            const photoTd = document.createElement("td");
+            const photoImg = document.createElement("img");
+            photoImg.src = ad.photo;
+            photoImg.height = "100";
+            photoImg.width = "100";
+            photoTd.append(ad.photo);
+            tr.append(photoImg);
+
+            const nameTd = document.createElement("td");
+            const nameSpan = document.createElement("h2");
+            const descriptionSpan = document.createElement("p");
+            nameSpan.append(ad.id + " " + ad.name)
+            descriptionSpan.append(ad.description)
+            nameTd.appendChild(nameSpan);
+            nameTd.appendChild(descriptionSpan);
+            tr.append(nameTd);
+
+            const priceTd = document.createElement("td");
+            const priceSpan = document.createElement("h2");
+            const dateSpan = document.createElement("p");
+            priceSpan.append(ad.price + "$")
+            dateSpan.append(ad.date)
+            priceTd.appendChild(priceSpan);
+            priceTd.appendChild(dateSpan);
+            tr.append(priceTd);
+
+            const linksTd = document.createElement("td");
+
+            const editLink = document.createElement("a");
+            const editIcon = document.createElement("span");
+            editLink.setAttribute("data-id", ad.id);
+            editLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            editIcon.setAttribute("class", "glyphicon glyphicon-pencil");
+            editLink.appendChild(editIcon);
+            editLink.addEventListener("click", e => {
+
+                e.preventDefault();
+                GetAdById(ad.id);
+            });
+            linksTd.append(editLink);
+
+            const removeLink = document.createElement("a");
+            const removeIcon = document.createElement("span");
+            removeLink.setAttribute("data-id", ad.id);
+            removeLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            removeIcon.setAttribute("class", "glyphicon glyphicon-trash");
+            removeLink.appendChild(removeIcon);
+            removeLink.addEventListener("click", e => {
+
+                e.preventDefault();
+                DeleteAd(ad.id);
+            });
+
+            linksTd.append(removeLink);
+            tr.appendChild(linksTd);
+
+            return tr;
+        }
+
+        var sort = document.getElementById("SortAd");
+        sort.addEventListener("change", function () {
+            var n = sort.options.selectedIndex;
+            var val = sort.options[n].value;
+            $("#tbody").empty();
+            GetAds($("#pageId").val(), val);
+        })
+
+        document.forms["adsForm"].addEventListener("submit", e => {
+            e.preventDefault();
+            var form = document.forms["adsForm"];
+            var id = form.elements["id"].value;
+            var name = form.elements["name"].value;
+            var description = form.elements["description"].value;
+            var photo = form.elements["photo"].value;
+            var price = form.elements["price"].value;
+            var date = new Date();
+            if (price == "")
+                price = -1;
+
+
+            if (id == 0)
+                CreateAd(name, description, photo, price, date);
+            else
+                EditAd(id, name, description, photo, price, date);
+
+        });
+
+        GetAds(1);
+
+        function showImg(src) {
+            document.getElementById("image").src = src;
+        }
+
+        function HideShowObj(obj, permissionToHide = false) {
+            if (obj.style.display == "block" && permissionToHide)
+                obj.setAttribute("style", "display: none");
+            else
+                obj.setAttribute("style", "display: block");
+        }
+
+    </script>
+</body>
+</html>

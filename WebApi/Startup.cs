@@ -10,35 +10,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using WebApi.Services;
 
 namespace WebApi
 {
     public class Startup
     {
-        //public void ConfigureServices(IServiceCollection services)
-        //{
-        //    string con = "Server=(localdb)\\mssqllocaldb;Database=usersdbstore;Trusted_Connection=True;";
-        //    services.AddDbContext<AdContext>(options => options.UseSqlServer(con));
-        //    services.AddControllers(); 
-        //}
-
-        //public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
-        //{
-        //    if (env.IsDevelopment())
-        //    {
-        //        app.UseDeveloperExceptionPage();
-        //    }
-
-        //    app.UseDefaultFiles();
-        //    app.UseStaticFiles();
-
-        //    app.UseRouting();
-
-        //    app.UseEndpoints(endpoints =>
-        //    {
-        //        endpoints.MapControllers();
-        //    });
-        //}
 
         private readonly IWebHostEnvironment _currentEnvironment;
         public IConfiguration Configuration { get; }
@@ -49,8 +26,6 @@ namespace WebApi
             _currentEnvironment = currentEnvironment;
         }
 
-
-        // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers().AddNewtonsoftJson();
@@ -63,7 +38,6 @@ namespace WebApi
 
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
@@ -87,11 +61,20 @@ namespace WebApi
             if (_currentEnvironment.IsEnvironment("Testing"))
             {
                 services.AddDbContextPool<AdContext>(options => options.UseInMemoryDatabase("TestingDB"));
+
             }
             else
             {
                 string con = "Server=(localdb)\\mssqllocaldb;Database=adDB;Trusted_Connection=True;";
                 services.AddDbContextPool<AdContext>(options => options.UseSqlServer(con));
+                services.AddHttpContextAccessor();
+                services.AddSingleton<IUriService>(o =>
+                {
+                    var accessor = o.GetRequiredService<IHttpContextAccessor>();
+                    var request = accessor.HttpContext.Request;
+                    var uri = string.Concat(request.Scheme, "://", request.Host.ToUriComponent());
+                    return new UriService(uri);
+                });
             }
         }
     }

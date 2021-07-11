@@ -4,28 +4,26 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <title>Список объявлений</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.0/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css" rel="stylesheet">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
 </head>
 <body>
     <h2>Список объявлений</h2>
     <div id="errors" class="alert alert-danger" style="display:none;"></div>
+    <input type="hidden" id="pageId" value="" />
     <div class="panel-body">
-        <button id="add" class="btn btn-primary" onclick='HideShowObj(document.forms["adsForm"], true);'>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-patch-plus" viewBox="0 0 16 16">
-                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
-                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
-            </svg>
+        <button id="add" class="btn btn-primary glyphicon glyphicon-plus" onclick='HideShowObj(document.forms["adsForm"], true);'>
         </button>
         <select id="SortAd">
-            <option value="Price/true">Цена по возрастанию</option>
-            <option value="Price/false">Цена по убыванию</option>
-            <option value="Date/true">Дата по возрастанию</option>
-            <option value="Date/false">Дата по убыванию</option>
+            <option value="Price">Цена по возрастанию</option>
+            <option value="PriceDesc">Цена по убыванию</option>
+            <option value="Date">Дата по возрастанию</option>
+            <option value="DateDesc">Дата по убыванию</option>
         </select>
     </div>
-    <form name="adsForm" style="content-visibility: hidden">
+    <form name="adsForm" style="display: none">
         <input type="hidden" name="id" value="0" />
         <div class="form-group col-md-5">
             <label for="name">Имя:</label>
@@ -40,13 +38,10 @@
             <input class="form-control" name="price" type="number" />
         </div>
         <div class="form-group col-md-3">
-            <img style='display:block; width:200px;height:200px;' id='image'
-                 src='' />
+            <img style='display:block; width:200px;height:200px;' id='image' src='' />
         </div>
         <div class="form-group col-md-3">
-
             <input class="form-control" name="photo" onchange="showImg(this.value)" />
-
         </div>
         <div class="form-group col-md-5">
             <label name="date">Date:</label>
@@ -62,26 +57,58 @@
         <tbody id="tbody">
         </tbody>
     </table>
+    <style>
+        @font-face {
+            font-family: 'glyphicons-halflings-regular';
+            src: url('../../../fonts/glyphicons-halflings-regular.woff2') format('woff2');
+        }
+    </style>
     <script>
 
-        async function GetAds(orderBy, asc) {
-            const response = await fetch("/api/ad/" + orderBy + "/" + asc, {
+        async function GetAds(id, orderby = "Date") {
+            const response = await fetch("/api/ad/?pageNumber=" + id + "&pageSize=10&orderBy=" + orderby, {
                 method: "GET",
                 headers: { "Accept": "application/json" }
             });
 
             if (response.ok === true) {
-                var ads = await response.json();
+                var resp = JSON.parse(JSON.stringify(await response.json()));
+                var ads = JSON.parse(JSON.stringify(resp)).data;
                 let rows = document.querySelector("tbody");
-
+                $("#pageId").val(resp.pageNumber);
                 ads.forEach(ad => {
                     rows.append(row(ad));
                 });
 
+                var sort = document.getElementById("SortAd");
+                var n = sort.options.selectedIndex;
+                var val = sort.options[n].value;
+
+                if (resp.previousPage != null) {
+                    const previousPage = document.createElement("button");
+                    previousPage.addEventListener("click", e => {
+                        $("#tbody").empty();
+                        GetAds(resp.pageNumber - 1, val);
+                    });
+                    previousPage.classList.add("btn", "btn-primary");
+                    previousPage.classList.add("glyphicon", "glyphicon-chevron-left");
+                    rows.append(previousPage);
+                }
+
+                if (resp.nextPage != null) {
+                    const nextPage = document.createElement("button");
+                    nextPage.addEventListener("click", e => {
+                        $("#tbody").empty();
+                        GetAds(resp.pageNumber + 1, val);
+                    });
+                    nextPage.classList.add("btn", "btn-primary");
+                    nextPage.classList.add("glyphicon", "glyphicon-chevron-right");
+                    rows.append(nextPage);
+                }
             }
         }
 
-        async function GetAd(id) {
+        async function GetAdById(id) {
 
             const response = await fetch("/api/ad/" + id, {
                 method: "GET",
@@ -183,13 +210,13 @@
             }
         }
 
-
         function reset() {
             const form = document.forms["adsForm"];
             form.reset();
             form.elements["id"].value = 0;
             showImg('');
         }
+
         function addError(errors) {
             errors.forEach(error => {
                 const p = document.createElement("p");
@@ -214,7 +241,7 @@
             const nameTd = document.createElement("td");
             const nameSpan = document.createElement("h2");
             const descriptionSpan = document.createElement("p");
-            nameSpan.append(ad.name)
+            nameSpan.append(ad.id + " " + ad.name)
             descriptionSpan.append(ad.description)
             nameTd.appendChild(nameSpan);
             nameTd.appendChild(descriptionSpan);
@@ -232,20 +259,24 @@
             const linksTd = document.createElement("td");
 
             const editLink = document.createElement("a");
+            const editIcon = document.createElement("span");
             editLink.setAttribute("data-id", ad.id);
             editLink.setAttribute("style", "cursor:pointer;padding:15px;");
-            editLink.append("Изменить");
+            editIcon.setAttribute("class", "glyphicon glyphicon-pencil");
+            editLink.appendChild(editIcon);
             editLink.addEventListener("click", e => {
 
                 e.preventDefault();
-                GetAd(ad.id);
+                GetAdById(ad.id);
             });
             linksTd.append(editLink);
 
             const removeLink = document.createElement("a");
+            const removeIcon = document.createElement("span");
             removeLink.setAttribute("data-id", ad.id);
             removeLink.setAttribute("style", "cursor:pointer;padding:15px;");
-            removeLink.append("Удалить");
+            removeIcon.setAttribute("class", "glyphicon glyphicon-trash");
+            removeLink.appendChild(removeIcon);
             removeLink.addEventListener("click", e => {
 
                 e.preventDefault();
@@ -261,9 +292,9 @@
         var sort = document.getElementById("SortAd");
         sort.addEventListener("change", function () {
             var n = sort.options.selectedIndex;
-            var val = sort.options[n].value.split('/');
+            var val = sort.options[n].value;
             $("#tbody").empty();
-            GetAds(val[0], JSON.parse(val[1].toLowerCase()));
+            GetAds($("#pageId").val(), val);
         })
 
         document.forms["adsForm"].addEventListener("submit", e => {
@@ -286,7 +317,7 @@
 
         });
 
-        GetAds(null, true);
+        GetAds(1);
 
         function showImg(src) {
             document.getElementById("image").src = src;

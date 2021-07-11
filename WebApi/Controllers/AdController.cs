@@ -7,6 +7,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Net;
+using WebApi.Wrappers;
+using WebApi.Filter;
+using WebApi.Helpers;
+using WebApi.Services;
 
 namespace WebApi.Controllers
 {
@@ -14,35 +18,50 @@ namespace WebApi.Controllers
     [ApiController]
     public class AdController : ControllerBase
     {
-        AdContext db;
-        public AdController(AdContext context)
+        private readonly IUriService uriService;
+        private readonly AdContext db; 
+
+        public AdController(AdContext context, IUriService uriService)
         {
             db = context;
+            this.uriService = uriService;
             if (!db.Ads.Any())
             {
                 db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0 , Photo = "" }) ;
+                db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0, Photo = "" });
+                db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0, Photo = "" });
+                db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0, Photo = "" });
+                db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0, Photo = "" });
+                db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0, Photo = "" });
+                db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0, Photo = "" });
+                db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0, Photo = "" });
+                db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0, Photo = "" });
+                db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0, Photo = "" });
+                db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0, Photo = "" });
+                db.Ads.Add(new Ad { Name = "Внимание!", Description = "Спасибо за внимание!", Date = DateTime.Now, Price = 0, Photo = "" });
                 db.SaveChanges();
             }
         }
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Ad>>> GetAll()
-        {
-            return await db.Ads.ToListAsync();
-        }
 
-        [HttpGet("{orderBy}/{asc}")]
-        public async Task<ActionResult<IEnumerable<Ad>>> GetAllWithSort(string orderBy = null, bool asc = true)
+        [HttpGet]
+        public async Task<IActionResult> GetAll([FromQuery] PaginationFilter filter)
         {
-            if (orderBy == "Price" && asc)
-                return await db.Ads.OrderBy(w => w.Price).ToListAsync();
-            if (orderBy == "Price" && !asc)
-                return await db.Ads.OrderByDescending(w => w.Price).ToListAsync();
-            if (orderBy == "Date" && asc)
-                return await db.Ads.OrderBy(w => w.Date).ToListAsync();
-            if (orderBy == "Date" && !asc)
-                return await db.Ads.OrderByDescending(w => w.Date).ToListAsync();
-            else
-                return await db.Ads.OrderBy(w => w.Id).ToListAsync();
+            var route = Request.Path.Value;
+            var validFilter = new PaginationFilter(filter.PageNumber, filter.PageSize, filter.OrderBy);
+            var pagedData = await db.Ads.Skip((validFilter.PageNumber - 1) * validFilter.PageSize).Take(validFilter.PageSize).ToListAsync();
+
+            if (filter.OrderBy == "Price")
+                pagedData = await db.Ads.OrderBy(w => w.Price).Skip((validFilter.PageNumber - 1) * validFilter.PageSize).Take(validFilter.PageSize).ToListAsync();
+            if (filter.OrderBy == "PriceDesc")
+                pagedData = await db.Ads.OrderByDescending(w => w.Price).Skip((validFilter.PageNumber - 1) * validFilter.PageSize).Take(validFilter.PageSize).ToListAsync();
+            if (filter.OrderBy == "Date")
+                pagedData = await db.Ads.OrderBy(w => w.Date).Skip((validFilter.PageNumber - 1) * validFilter.PageSize).Take(validFilter.PageSize).ToListAsync();
+            if (filter.OrderBy == "DateDesc")
+                pagedData = await db.Ads.OrderByDescending(w => w.Date).Skip((validFilter.PageNumber - 1) * validFilter.PageSize).Take(validFilter.PageSize).ToListAsync();
+
+            var totalRecords = await db.Ads.CountAsync();
+            var pagedReponse = PaginationHelper.CreatePagedReponse<Ad>(pagedData, validFilter, totalRecords, uriService, route);
+            return Ok(pagedReponse);
         }
 
         [HttpGet("{id}")]
